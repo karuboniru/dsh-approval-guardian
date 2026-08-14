@@ -1,6 +1,6 @@
 {
   "name": "dsh-approval-guardian",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness bundle that routes real sandbox escalation prompts through a dedicated approval reviewer",
   "type": "module",
   "main": "lib/index.js",

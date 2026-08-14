@@ -205,7 +205,7 @@ describe('approval guardian interception', () => {
     expect(captured?.toolFilter).toEqual({ allow: [] })
     expect(captured?.agentOptions).toEqual({ maxTokens: 1_024 })
     expect(captured?.prompt[0]?.text).toContain('"callId": "call-1"')
-    expect(captured?.persona).toContain('# Mandatory evidence handling')
+    expect(captured?.persona).toContain('# Evidence handling')
     expect(captured?.persona).toContain('# Mandatory reviewer-session separation')
     expect(dispose).toHaveBeenCalledOnce()
     expect(exec.deferred).toHaveLength(1)

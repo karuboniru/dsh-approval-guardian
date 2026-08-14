@@ -12,7 +12,10 @@ export const TRANSCRIPT_LIMITS = Object.freeze({
   actionStringTokens: 16_000,
 })
 
-type TranscriptKind = 'user' | 'checkpoint' | 'assistant' | 'tool'
+type TranscriptKind = 'user' | 'instruction' | 'question' | 'checkpoint' | 'assistant' | 'tool'
+
+/** Trusted kinds that establish user authorization (shared anchor/budget handling). */
+const TRUSTED_KINDS: ReadonlySet<TranscriptKind> = new Set(['user', 'instruction', 'question'])
 
 /** One filtered parent-history entry before budget selection. */
 export interface TranscriptEntry {
@@ -31,6 +34,10 @@ function evidenceLabel(entry: TranscriptEntry): string {
   switch (entry.kind) {
     case 'user':
       return 'TRUSTED HUMAN MESSAGE'
+    case 'instruction':
+      return 'TRUSTED INSTRUCTION'
+    case 'question':
+      return 'TRUSTED QUESTION ANSWER'
     case 'checkpoint':
       return 'UNTRUSTED COMPACTION CHECKPOINT'
     case 'assistant':
@@ -124,11 +131,56 @@ function visibleContent(blocks: readonly ContentBlock[]): string {
 }
 
 /**
+ * Whether a message is workspace/developer instruction content (AGENTS.md and
+ * compatible files) loaded by the harness. Such content is trusted and can
+ * establish user authorization. It arrives as either the merge-extensible
+ * `agent-instructions` source kind or a `plugin` source named
+ * `agent-instructions` carrying the instructions `form`.
+ */
+function isInstructionSource(source: Message['source']): boolean {
+  const candidate = source as { readonly kind?: unknown; readonly plugin?: unknown }
+  if (candidate.kind === 'agent-instructions') return true
+  return candidate.kind === 'plugin' && candidate.plugin === 'agent-instructions'
+}
+
+/** The tool name whose answer is a human-selected option under a question. */
+const QUESTION_TOOL = 'ask_user_question'
+
+/**
+ * Whether an ask_user_question result carries a well-formed human answer worth
+ * treating as trusted authorization. Only a successful result (isError ===
+ * false) whose text parses to `{ answers: [{ id: string, selected: string[],
+ * custom?: string }] }` qualifies; cancelled, malformed, or structure-less
+ * output stays generated tool data.
+ */
+function isTrustedQuestionAnswer(text: string): boolean {
+  let payload: unknown
+  try {
+    payload = JSON.parse(text)
+  } catch {
+    return false
+  }
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false
+  const answers = (payload as Record<string, unknown>).answers
+  if (!Array.isArray(answers) || answers.length === 0) return false
+  return answers.every(answer => {
+    if (typeof answer !== 'object' || answer === null || Array.isArray(answer)) return false
+    const record = answer as Record<string, unknown>
+    const id = record.id
+    const selected = record.selected
+    if (typeof id !== 'string' || id.length === 0) return false
+    if (!Array.isArray(selected)) return false
+    return selected.every(item => typeof item === 'string')
+  })
+}
+
+/**
  * Filter compacted parent history for automated approval review.
  *
- * Direct human messages and compaction checkpoints are retained. Assistant
- * reasoning and ordinary runtime/plugin context are excluded; visible
- * assistant text, tool calls, and tool results remain as evidence.
+ * Direct human messages, workspace/developer instruction files (AGENTS.md),
+ * human-selected question answers, and compaction checkpoints are retained.
+ * Assistant reasoning and ordinary runtime/plugin context are excluded;
+ * visible assistant text, tool calls, and tool results remain as evidence.
  */
 export function collectTranscriptEntries(messages: readonly Message[]): TranscriptEntry[] {
   const entries: TranscriptEntry[] = []
@@ -138,6 +190,12 @@ export function collectTranscriptEntries(messages: readonly Message[]): Transcri
     if (message.source.kind === 'user') {
       const text = visibleContent(message.content)
       if (text.length > 0) entries.push({ kind: 'user', role: 'user', text })
+      continue
+    }
+
+    if (isInstructionSource(message.source)) {
+      const text = visibleContent(message.content)
+      if (text.length > 0) entries.push({ kind: 'instruction', role: 'instructions', text })
       continue
     }
 
@@ -166,6 +224,13 @@ export function collectTranscriptEntries(messages: readonly Message[]): Transcri
         const text = visibleContent(block.content)
         if (text.length === 0) continue
         const toolName = toolNames.get(String(block.toolCallId))
+        // Only a successful, well-formed ask_user_question answer is trusted
+        // human authorization. A cancelled, unavailable, aborted, crashed, or
+        // malformed result stays generated tool data, not a human selection.
+        if (toolName === QUESTION_TOOL && block.isError === false && isTrustedQuestionAnswer(text)) {
+          entries.push({ kind: 'question', role: `tool ${toolName} answer`, text })
+          continue
+        }
         entries.push({
           kind: 'tool',
           role: toolName === undefined ? 'tool result' : `tool ${toolName} result`,
@@ -194,27 +259,27 @@ export function renderTranscript(entries: readonly TranscriptEntry[]): RenderedT
   const included = new Array<boolean>(entries.length).fill(false)
   let messageTokens = 0
   let toolTokens = 0
-  const userIndices = entries
-    .map((entry, index) => entry.kind === 'user' ? index : -1)
+  const trustedIndices = entries
+    .map((entry, index) => TRUSTED_KINDS.has(entry.kind) ? index : -1)
     .filter(index => index >= 0)
 
-  const firstUser = userIndices[0]
-  if (firstUser !== undefined) {
-    included[firstUser] = true
-    messageTokens += rendered[firstUser]?.tokens ?? 0
+  const firstTrusted = trustedIndices[0]
+  if (firstTrusted !== undefined) {
+    included[firstTrusted] = true
+    messageTokens += rendered[firstTrusted]?.tokens ?? 0
   }
 
-  const lastUser = userIndices[userIndices.length - 1]
-  if (lastUser !== undefined && !included[lastUser]) {
-    const tokens = rendered[lastUser]?.tokens ?? 0
+  const lastTrusted = trustedIndices[trustedIndices.length - 1]
+  if (lastTrusted !== undefined && !included[lastTrusted]) {
+    const tokens = rendered[lastTrusted]?.tokens ?? 0
     if (messageTokens + tokens <= TRANSCRIPT_LIMITS.messageTotalTokens) {
-      included[lastUser] = true
+      included[lastTrusted] = true
       messageTokens += tokens
     }
   }
 
-  for (let offset = userIndices.length - 1; offset >= 0; offset -= 1) {
-    const index = userIndices[offset]
+  for (let offset = trustedIndices.length - 1; offset >= 0; offset -= 1) {
+    const index = trustedIndices[offset]
     if (index === undefined || included[index]) continue
     const tokens = rendered[index]?.tokens ?? 0
     if (messageTokens + tokens > TRANSCRIPT_LIMITS.messageTotalTokens) continue
@@ -222,18 +287,18 @@ export function renderTranscript(entries: readonly TranscriptEntry[]): RenderedT
     messageTokens += tokens
   }
 
-  let retainedNonUser = 0
+  let retainedNonTrusted = 0
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index]
-    if (entry === undefined || entry.kind === 'user'
-      || retainedNonUser >= TRANSCRIPT_LIMITS.recentNonUserEntries) continue
+    if (entry === undefined || TRUSTED_KINDS.has(entry.kind)
+      || retainedNonTrusted >= TRANSCRIPT_LIMITS.recentNonUserEntries) continue
     const tokens = rendered[index]?.tokens ?? 0
     const withinBudget = entry.kind === 'tool'
       ? toolTokens + tokens <= TRANSCRIPT_LIMITS.toolTotalTokens
       : messageTokens + tokens <= TRANSCRIPT_LIMITS.messageTotalTokens
     if (!withinBudget) continue
     included[index] = true
-    retainedNonUser += 1
+    retainedNonTrusted += 1
     if (entry.kind === 'tool') toolTokens += tokens
     else messageTokens += tokens
   }

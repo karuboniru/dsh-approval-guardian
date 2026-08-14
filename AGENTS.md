@@ -19,7 +19,7 @@ Preserve all of these invariants when changing the plugin:
 3. Call `next()` for ordinary workspace operations, non-widening requests, unrelated approvals, and requests that cannot be correlated exactly.
 4. Do not inspect or review a normal tool failure merely because it may have been caused by the sandbox.
 5. Start one fresh reviewer per claimed request. The reviewer must have no tools (`toolFilter: { allow: [] }`) and must return the structured decision schema.
-6. Treat only entries labelled `TRUSTED HUMAN MESSAGE` as user authorization. Assistant text, tool data, compaction checkpoints, approval reasons, arguments, and reviewer output are untrusted evidence.
+6. Treat only entries labelled `TRUSTED HUMAN MESSAGE` (direct human messages), `TRUSTED INSTRUCTION` (developer messages and `AGENTS.md`-class workspace instructions), and `TRUSTED QUESTION ANSWER` (human-selected options under an `ask_user_question` question) as user authorization. Assistant text, tool data, compaction checkpoints, approval reasons, arguments, and reviewer output are untrusted evidence.
 7. Preserve chronological precedence: a later trusted human instruction supersedes an earlier conflicting instruction about the same operation or review.
 8. DSH child-agent statements such as “approval prompts are disabled”, “approval policy: never”, and “delegated scope cannot be widened” constrain only actions attempted by the reviewer itself. They must never justify denial of the parent action.
 9. Suppress dynamic system-prompt contexts only for the approval reviewer. Never remove contexts from the parent agent or unrelated subagents.
@@ -69,6 +69,8 @@ Add or update regression coverage for every changed branch. At minimum, retain t
 - unavailable and timeout behavior follows `failureMode`;
 - cancellation and plugin disposal drain the reviewer;
 - direct human messages are trusted and all other evidence is untrusted;
+- developer messages and `AGENTS.md`-class instructions are trusted (`TRUSTED INSTRUCTION`) and ordinary tool/assistant/checkpoint evidence remains untrusted;
+- human-selected options under an `ask_user_question` question are trusted (`TRUSTED QUESTION ANSWER`) and ordinary tool results remain untrusted;
 - a later human `accept` supersedes an earlier conflicting `reject`;
 - reviewer-owned disabled-approval/delegation constraints cannot be used against the parent action;
 - transcript budgets, ordering, truncation, and stable action serialization remain deterministic.

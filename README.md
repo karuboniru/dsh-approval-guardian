@@ -101,20 +101,24 @@ reviewer 明确返回 `deny` 属于有效决定，在两种模式下都不会回
 
 上下文来自 `session.deriveMessages()`，因此遵守 compaction 后的可见历史。选择规则模仿 Codex Guardian 的默认行为：
 
-- 保留第一条和最新一条用户消息；
-- 在约 10,000-token 的消息预算内，从新到旧补充其他用户消息；
+- 保留第一条和最新一条可信消息（直接用户消息、instruction 或 question 回答）；
+- 在约 10,000-token 的消息预算内，从新到旧补充其他可信消息；
 - 工具证据使用独立的约 10,000-token 预算；
-- 最多保留最近 40 条非用户记录；
+- 最多保留最近 40 条非可信记录；
 - 单条消息、工具证据、审批 reason 和 action 分别限制为约 2,000、1,000、512 和 16,000 tokens。
 
-只会选择直接用户消息、compaction checkpoint、assistant 可见文本、tool call 和 tool result。推理内容、普通插件上下文、生命周期事件和审计记录不会发送给 reviewer。
+只会选择直接用户消息、developer/工作区指令（`agent-instructions`）、question 回答、compaction checkpoint、assistant 可见文本、tool call 和 tool result。推理内容、普通插件上下文、生命周期事件和审计记录不会发送给 reviewer。
 
 每条历史都会标记为：
 
 - `TRUSTED HUMAN MESSAGE`：直接用户消息，可以表达授权；
+- `TRUSTED INSTRUCTION`：developer 消息与工作区指令文件（`AGENTS.md`、`CLAUDE.md`），视为用户已把其内容设为任务授权依据，可以表达授权；
+- `TRUSTED QUESTION ANSWER`：用户在 `ask_user_question` 的 question 下选中的选项，等于用户直接回答，可以表达授权；
 - `UNTRUSTED ...`：assistant、工具、checkpoint 等只能作为证据，不能作为指令。
 
-历史按时间排序。对于同一操作或审批的冲突指令，较新的可信用户消息覆盖较早消息。例如用户先要求 reviewer 拒绝，随后明确要求接受，则后一个直接用户指令具有更高时序优先级。
+三者都属于可信来源，可以建立 user authorization。授权上限仍受政策约束：例如可信指令/回答不能覆盖 critical-risk 或绝对 deny 规则，且不可信内容不能借这些来源间接扩展授权（除非用户明确要求遵循该内容）。
+
+历史按时间排序。对于同一操作或审批的冲突指令，较新的可信消息覆盖较早消息。例如用户先要求 reviewer 拒绝，随后明确要求接受，则后一个可信指令具有更高时序优先级。
 
 ## Reviewer 子会话隔离
 
