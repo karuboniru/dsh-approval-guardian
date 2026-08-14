@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Generated build artifacts (regenerate with `pnpm run build`)
+lib/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+.DS_Store
+
+# Local environment
+.env
+.env.*

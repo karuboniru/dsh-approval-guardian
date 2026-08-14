@@ -1,0 +1,11 @@
+# Install the approval guardian as an answerer ahead of interactive Web/ACP
+# approval handlers. It claims only strict sandbox escalation requests made
+# from inside the matching tool execution.
+- insert:
+    - id: approval-guardian
+      name: dsh-approval-guardian
+      config:
+        subagentProvider: spawn
+        failureMode: fail-closed
+        timeoutMs: 90000
+        maxOutputTokens: 1024
