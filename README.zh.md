@@ -25,7 +25,7 @@
 
 - **运行时：** Node.js `^22.19.0` 或 `>=24.0.0`，以及 pnpm。
 - **peer 依赖：** `@deepseek-ai/cordis ^4.0.1` 以及 [`package.json`](./package.json) 中声明的 `^0.1.0-rc.5` DSH 包（`dsh-agent`、`dsh-compaction`、`dsh-llm`、`dsh-sandbox`、`dsh-sandbox-policy`、`dsh-session`、`dsh-subagent`、`dsh-system-prompt`、`dsh-tools`、`dsh-user-approval`）。
-- **已验证组合：** DSH CLI `0.1.0-rc.6`，所有 peer 包解析为 `0.1.0-rc.6`（确切的解析快照哈希固定在 [`pnpm-lock.yaml`](./pnpm-lock.yaml) 中）。该功能于 **2026-08-14** 在此组合下确认可用。
+- **已验证组合：** DSH CLI `0.1.0-rc.6`，所有 peer 包解析为 `0.1.0-rc.6`（确切的解析快照哈希固定在 [`pnpm-lock.yaml`](./pnpm-lock.yaml) 中）。`0.1.0-rc.6` 确认正常：自动审批审查流程——匹配严格沙箱扩权、启动无工具 reviewer、应用其结构化 `allow`/`deny`——已于 **2026-08-14** 在真实会话中端到端运行验证。
 - bundle 通过 `package.json` 中的 `dsh.bundle.patch` 条目自动加载，该条目指向 [`cordis.patch.yml`](./cordis.patch.yml)。
 
 ## 安装 / 卸载

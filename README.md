@@ -25,7 +25,7 @@ After a review completes, the result is queued through `ToolRunContext.deferCont
 
 - **Runtime:** Node.js `^22.19.0` or `>=24.0.0`, and pnpm.
 - **Peer packages:** `@deepseek-ai/cordis ^4.0.1` and the DSH packages declared in [`package.json`](./package.json) at `^0.1.0-rc.5` (`dsh-agent`, `dsh-compaction`, `dsh-llm`, `dsh-sandbox`, `dsh-sandbox-policy`, `dsh-session`, `dsh-subagent`, `dsh-system-prompt`, `dsh-tools`, `dsh-user-approval`).
-- **Verified against:** DSH CLI `0.1.0-rc.6` with all peer packages resolved at `0.1.0-rc.6` (exact resolved snapshot hashes are pinned in [`pnpm-lock.yaml`](./pnpm-lock.yaml)). The functionality was confirmed working against this combination on **2026-08-14**.
+- **Verified against:** DSH CLI `0.1.0-rc.6` with all peer packages resolved at `0.1.0-rc.6` (exact resolved snapshot hashes are pinned in [`pnpm-lock.yaml`](./pnpm-lock.yaml)). `0.1.0-rc.6` is confirmed working: the automatic approval-review flow — matching a strict sandbox escalation, spawning the tool-less reviewer, and applying its structured `allow`/`deny` — was observed end-to-end at runtime in a live session on **2026-08-14**.
 - The bundle is auto-loaded through the `dsh.bundle.patch` entry in `package.json`, which points at [`cordis.patch.yml`](./cordis.patch.yml).
 
 ## Install / Uninstall
