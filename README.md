@@ -35,7 +35,7 @@ dsh plugin --profile web add .
 也可以将 Git URL 或已发布的包名传给：
 
 ```sh
-dsh plugin --profile <profile-name> add <package-or-git-url>
+dsh plugin --profile <profile-name> add dsh-approval-guardian@0.1.1
 ```
 
 Git 安装会执行 `prepare`。pnpm 10 及以上版本可能要求先在目标 profile 的 `pnpm-workspace.yaml` 中允许该包执行构建脚本。
