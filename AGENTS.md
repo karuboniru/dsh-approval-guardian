@@ -54,6 +54,7 @@ Preserve all of these invariants when changing the plugin:
 - Do not include private reasoning or arbitrary plugin messages in reviewer context.
 - Keep comments focused on lifecycle, concurrency, security boundaries, and surprising DSH behavior.
 - Update README configuration and behavior documentation when changing public options or semantics.
+- Keep `README.md` (English) and `README.zh.md` (Chinese) in sync. `README.zh.md` is an exact translation of `README.md`, and both files must be updated together in the same change; the default `README.md` links to `README.zh.md` and vice versa.
 
 ## Required tests for behavioral changes
 
